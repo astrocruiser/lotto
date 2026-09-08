@@ -34,7 +34,8 @@ def main():
         try:
             numbers = fetch_draw(next_round)
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
-            raise SystemExit(f"공식 데이터 요청 실패: {error}") from error
+            print(f"새 회차 확인을 중단합니다: {error}")
+            break
         if numbers is None:
             break
         draws[str(next_round)] = numbers
