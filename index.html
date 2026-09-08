@@ -184,8 +184,7 @@
     $("generate").addEventListener("click", () => {
       const rounds = Object.keys(state.draws).length;
       if (!rounds) {
-        updateStatus("먼저 공식 데이터를 갱신하거나 당첨번호를 직접 추가해 주세요.");
-        return;
+        updateStatus("최신 당첨번호를 확인하지 못해 누적 제외 없이 추천번호를 생성합니다.");
       }
       $("results").innerHTML = combinations().map((numbers, index) =>
         `<div class="recommendation"><strong>${index + 1}번</strong> ${
