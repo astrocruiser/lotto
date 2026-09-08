@@ -1,0 +1,25 @@
+name: Update lotto data
+
+on:
+  schedule:
+    - cron: "40 12 * * 6"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update data
+        run: python scripts/update_lotto_data.py
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lotto-data.json
+          git diff --cached --quiet || git commit -m "Update lotto winning numbers"
+          git push

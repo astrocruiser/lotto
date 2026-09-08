@@ -78,41 +78,17 @@
       }
     }
 
-    async function fetchDraw(round) {
-      const url = `https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${round}`;
-      const response = await fetch(url, { cache: "no-store" });
-      const contentType = response.headers.get("content-type") || "";
-      if (!response.ok || !contentType.includes("json")) {
-        throw new Error("공식 응답을 JSON으로 확인하지 못했습니다.");
-      }
-      const data = await response.json();
-      if (data.returnValue !== "success") throw new Error("존재하지 않는 회차입니다.");
-      const numbers = [1, 2, 3, 4, 5, 6].map((n) => data[`drwtNo${n}`]);
-      return parseNumbers(numbers.join(","));
-    }
-
     async function updateNewDraws() {
-      const storedRounds = Object.keys(state.draws).map(Number);
-      let round = storedRounds.length ? Math.max(...storedRounds) + 1 : 1;
-      let saved = 0;
-      let lastError = null;
-      while (saved < 20) {
-        try {
-          state.draws[round] = await fetchDraw(round);
-          saved += 1;
-          round += 1;
-        } catch (error) {
-          lastError = error;
-          break;
-        }
-      }
-      saveState();
-      if (saved) {
-        updateStatus(`${saved}개 새 회차를 자동으로 추가했습니다.`);
-      } else if (lastError) {
-        updateStatus("새 회차가 없거나 공식 사이트 응답을 확인하지 못했습니다. 저장된 데이터로 계속 진행합니다.");
-      } else {
-        updateStatus("새 회차 자동 확인을 완료했습니다.");
+      try {
+        const response = await fetch(`lotto-data.json?updated=${Date.now()}`, { cache: "no-store" });
+        if (!response.ok) throw new Error("누적 데이터 파일을 불러오지 못했습니다.");
+        const published = await response.json();
+        Object.assign(state.draws, published.draws || {});
+        saveState();
+        updateStatus("GitHub Actions가 갱신한 누적 데이터를 불러왔습니다.");
+      } catch (error) {
+        updateStatus("누적 데이터 확인에 실패했습니다. 브라우저에 저장된 데이터를 사용합니다.");
+        console.error(error);
       }
     }
 
@@ -193,7 +169,7 @@
       ).join("");
     });
 
-    updateStatus("저장 데이터 확인 완료. 새 회차를 자동 확인합니다.");
+    updateStatus("누적 데이터를 불러오는 중입니다.");
     updateNewDraws();
   </script>
 </body>
