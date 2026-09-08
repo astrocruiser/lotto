@@ -27,7 +27,7 @@ def fetch_draw(round_number):
 def main():
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     draws = {str(key): value for key, value in data.get("draws", {}).items()}
-    next_round = max((int(key) for key in draws), default=0) + 1
+    next_round = max((int(key) for key in draws), default=1239) + 1
     added = 0
 
     while True:
