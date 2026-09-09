@@ -21,7 +21,10 @@ def fetch_draw(round_number):
         payload = json.loads(response.read().decode("utf-8"))
     if payload.get("returnValue") != "success":
         return None
-    return sorted(payload[f"drwtNo{index}"] for index in range(1, 7))
+    return {
+        "numbers": sorted(payload[f"drwtNo{index}"] for index in range(1, 7)),
+        "bonus": payload["bnusNo"],
+    }
 
 
 def main():
