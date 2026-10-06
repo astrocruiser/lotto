@@ -27,8 +27,17 @@ def fetch_draw(round_number):
 def main():
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     draws = {str(key): value for key, value in data.get("draws", {}).items()}
-    next_round = max((int(key) for key in draws), default=1239) + 1
+    rounds = [int(key) for key in draws]
+    existing_rounds = set(rounds)
+    next_round = next(
+        (round_number for round_number in range(1, max(rounds, default=0) + 1)
+         if round_number not in existing_rounds),
+        max(rounds, default=0) + 1,
+    )
     added = 0
+
+    if rounds and next_round <= max(rounds):
+        print(f"누락된 과거 회차부터 당첨 이력을 확인합니다: {next_round}회")
 
     while True:
         try:
