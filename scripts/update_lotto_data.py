@@ -7,6 +7,7 @@ from urllib.request import Request, urlopen
 
 DATA_PATH = Path("lotto-data.json")
 API_URL = "https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo={}"
+ARCHIVE_URL = "https://raw.githubusercontent.com/ParkMinKyu/bok/master/lottoHistory.json"
 
 
 def fetch_draw(round_number):
@@ -24,20 +25,41 @@ def fetch_draw(round_number):
     return sorted(payload[f"drwtNo{index}"] for index in range(1, 7))
 
 
+def fetch_archive():
+    request = Request(
+        ARCHIVE_URL,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "lotto-data-updater/1.0",
+        },
+    )
+    with urlopen(request, timeout=30) as response:
+        archive = json.loads(response.read().decode("utf-8"))
+
+    if not isinstance(archive, list) or not archive:
+        raise ValueError("공개 당첨 이력에서 유효한 회차 목록을 받지 못했습니다.")
+
+    draws = {}
+    for draw in archive:
+        round_number = int(draw["drwNo"])
+        numbers = sorted(int(draw[f"drwtNo{index}"]) for index in range(1, 7))
+        if len(set(numbers)) != 6 or any(number < 1 or number > 45 for number in numbers):
+            raise ValueError(f"{round_number}회 당첨번호 데이터가 올바르지 않습니다.")
+        draws[str(round_number)] = numbers
+
+    rounds = sorted(int(round_number) for round_number in draws)
+    if rounds != list(range(1, rounds[-1] + 1)):
+        raise ValueError("공개 당첨 이력에 누락 회차가 있어 갱신을 중단합니다.")
+    return draws
+
+
 def main():
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     draws = {str(key): value for key, value in data.get("draws", {}).items()}
-    rounds = [int(key) for key in draws]
-    existing_rounds = set(rounds)
-    next_round = next(
-        (round_number for round_number in range(1, max(rounds, default=0) + 1)
-         if round_number not in existing_rounds),
-        max(rounds, default=0) + 1,
-    )
-    added = 0
-
-    if rounds and next_round <= max(rounds):
-        print(f"누락된 과거 회차부터 당첨 이력을 확인합니다: {next_round}회")
+    archived_draws = fetch_archive()
+    added = len(set(archived_draws) - set(draws))
+    draws.update(archived_draws)
+    next_round = max((int(key) for key in draws), default=0) + 1
 
     while True:
         try:
@@ -53,10 +75,17 @@ def main():
         time.sleep(0.2)
 
     DATA_PATH.write_text(
-        json.dumps({"draws": draws}, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(
+            {
+                "source": ARCHIVE_URL,
+                "draws": dict(sorted(draws.items(), key=lambda item: int(item[0]))),
+            },
+            ensure_ascii=False,
+            indent=2,
+        ) + "\n",
         encoding="utf-8",
     )
-    print(f"새 회차 {added}개 저장, 누적 회차 {len(draws)}개")
+    print(f"이력 반영 및 새 회차 {added}개 저장, 누적 회차 {len(draws)}개")
 
 
 if __name__ == "__main__":
