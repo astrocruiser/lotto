@@ -103,7 +103,11 @@
     function updateStatus(message) {
       const rounds = Object.keys(state.draws).map(Number).sort((a, b) => b - a);
       $("status").classList.remove("error");
-      $("status").textContent = `${message}\n저장된 회차: ${rounds.length ? rounds.join(", ") : "없음"}`;
+      const recentRounds = rounds.slice(0, 10);
+      const drawSummary = rounds.length
+        ? `${rounds.length}회${recentRounds.length ? ` (최근 ${recentRounds.join(", ")})` : ""}`
+        : "없음";
+      $("status").textContent = `${message}\n저장된 회차: ${drawSummary}`;
       if (rounds.length) {
         const latest = rounds[0];
         $("latestDraw").textContent = `${latest}회 당첨번호: ${state.draws[latest].join(", ")}`;
