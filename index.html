@@ -117,17 +117,50 @@
     }
 
     async function updateNewDraws() {
-      try {
-        const response = await fetch(`lotto-data.json?updated=${Date.now()}`, { cache: "no-store" });
-        if (!response.ok) throw new Error("누적 데이터 파일을 불러오지 못했습니다.");
-        const published = await response.json();
-        Object.assign(state.draws, published.draws || {});
-        saveState();
-        updateStatus("GitHub Actions가 갱신한 누적 데이터를 불러왔습니다.");
-      } catch (error) {
-        updateStatus("누적 데이터 확인에 실패했습니다. 브라우저에 저장된 데이터를 사용합니다.");
-        console.error(error);
+      const version = Date.now();
+      const sources = [
+        {
+          url: `https://raw.githubusercontent.com/astrocruiser/lotto/main/lotto-data.json?updated=${version}`,
+          label: "GitHub 저장소",
+        },
+        {
+          url: `lotto-data.json?updated=${version}`,
+          label: "GitHub Pages",
+        },
+      ];
+      let lastError;
+
+      for (const source of sources) {
+        try {
+          const response = await fetch(source.url, { cache: "no-store" });
+          if (!response.ok) throw new Error(`${source.label}에서 누적 데이터를 불러오지 못했습니다.`);
+          const published = await response.json();
+          const entries = Object.entries(published.draws || {});
+          const rounds = entries.map(([round, numbers]) => {
+            const roundNumber = Number(round);
+            if (!Number.isInteger(roundNumber) || roundNumber < 1
+              || !Array.isArray(numbers) || numbers.length !== 6
+              || numbers.some((number) => !Number.isInteger(number) || number < 1 || number > 45)
+              || new Set(numbers).size !== 6) {
+              throw new Error(`${source.label}의 ${round}회 당첨번호 데이터가 올바르지 않습니다.`);
+            }
+            return roundNumber;
+          }).sort((a, b) => b - a);
+          if (rounds.length < 10) {
+            throw new Error(`${source.label}의 누적 회차가 최근 10회보다 적습니다.`);
+          }
+          Object.assign(state.draws, published.draws);
+          saveState();
+          updateStatus(`${source.label}에서 ${rounds[0]}회까지 당첨번호 데이터를 확인했습니다.`);
+          return;
+        } catch (error) {
+          lastError = error;
+          console.error(`${source.label} 데이터 확인 실패`, error);
+        }
       }
+
+      updateStatus(`최신 누적 데이터를 확인하지 못했습니다. 브라우저 저장 데이터(${Object.keys(state.draws).length}회)를 사용합니다.`);
+      console.error("최신 당첨번호 데이터 확인 실패", lastError);
     }
 
     $("refresh").addEventListener("click", async () => {
